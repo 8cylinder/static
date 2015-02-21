@@ -1,5 +1,5 @@
 
-* Static
+* [[images/static-logo%400.5x.png?raw=true]]
 The ridiculously simple static site generator.
 
 
@@ -13,7 +13,7 @@ A parent document looks like this:
   <title>[[title]]</title>
 </head>
 <body>
-  <h1>[[big-header]]</h1>
+  <h1>[[bigheader]]</h1>
   [[content]]
 </body>
 </html>
@@ -26,14 +26,16 @@ And this is a child document:
 <template:destination>../website</template:destination>
 
 <template:title>Interesting Page</template:title>
-<template:big-header>Hello Everybody</template:big-header>
+<template:bigheader>Hello Everybody</template:bigheader>
 
  <p>This is some very interesting content</p>
 #+END_SRC
 
 In the parent document, fields are marked with two square brackets.
 This is where the values from the child are inserted.  The one called
-=content= is a fixed name and can't be changed.
+=content= is a fixed name and can't be changed, its where the child doc
+gets inserted.  Note, all the template tags get removed before being
+merged with the parent.
 
 In the child document, tags called =template= contain values that get
 inserted into the parent.
@@ -46,7 +48,7 @@ over ride any set on the command line.
   3. =template:destination= is where the generated file will be put.
 
 Any other =template:some-name= tags will have their value inseted into the
-parent's matching =[some-name]]=.
+parent's matching =[somename]]=.
 
 Values can also be passed in from the command line.  Values can be
 specified by =--var=KEY::VALUE=. For example =--var=date::10/10/10=.
@@ -75,14 +77,17 @@ Overview
 
   Basically, if you edit a child document, update only that one file.  If you
   edit a template (parent) file, you want to update all files so you pass the
-  directory to static
+  directory name to static
 #+END_EXAMPLE
 
 
 ** Example code for Emacs
 
+This function automaticaly runs static on any child documents when
+saved, and runs static on all the files when a template file is saved.
+
 #+BEGIN_SRC emacs-lisp
-(defun sm/compile-html()
+(defun static/compile()
   "If a buffer is using web-mode, it will call static to compile it"
   (interactive)
   (if (string= (format "%s" mode-name) "Web")
@@ -104,5 +109,5 @@ Overview
         (shell-command cmd)
         (message cmd)
         )))
-(add-hook 'after-save-hook 'sm/compile-html)
+(add-hook 'after-save-hook static/compile)
 #+END_SRC
