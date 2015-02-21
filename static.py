@@ -133,12 +133,12 @@ def compile_one(A):
     full = frame.replace('[[content]]', content)
 
     for v in tag_values:
-        dest_tag = '[%s]' % v
+        dest_tag = '[[%s]]' % v
         full = full.replace(dest_tag, tag_values[v])
 
 
     # write the full html to the file system
-    destination = os.path.join(A.workingdir, destination, content_filename)
+    destination = os.path.normpath(os.path.join(A.workingdir, destination, content_filename))
     try:
         dest = open(destination, 'w')
     except IOError:
@@ -155,6 +155,7 @@ def main(args):
         defaultparent = args['DEFAULTPARENT']
         ignore = args['--ignore-prefix']
         var = args['--var']
+        workingdir = os.path.dirname(args['FILENAME'])
 
     if os.path.isdir(A.filename):
         compile_all(A)
