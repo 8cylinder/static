@@ -1,0 +1,108 @@
+
+* Static
+The ridiculously simple static site generator.
+
+
+** Overview
+Static takes a child document and inserts it into a parent document.
+
+A parent document looks like this:
+#+BEGIN_SRC html
+<html>
+<head>
+  <title>[[title]]</title>
+</head>
+<body>
+  <h1>[[big-header]]</h1>
+  [[content]]
+</body>
+</html>
+#+END_SRC
+
+And this is a child document:
+#+BEGIN_SRC html
+<template:parent>template_default.html</template:parent>
+<template:filename>index.html</template:filename>
+<template:destination>../website</template:destination>
+
+<template:title>Interesting Page</template:title>
+<template:big-header>Hello Everybody</template:big-header>
+
+ <p>This is some very interesting content</p>
+#+END_SRC
+
+In the parent document, fields are marked with two square brackets.
+This is where the values from the child are inserted.  The one called
+=content= is a fixed name and can't be changed.
+
+In the child document, tags called =template= contain values that get
+inserted into the parent.
+
+The first three are special.  If they are in the document, they will
+over ride any set on the command line.
+  1. =template:parent= is the name of the parent file to use.
+  2. =template:filename= is the name the generated file will be.  If
+     this is not used, the filename will be the name of the child.
+  3. =template:destination= is where the generated file will be put.
+
+Any other =template:some-name= tags will have their value inseted into the
+parent's matching =[some-name]]=.
+
+Values can also be passed in from the command line.  Values can be
+specified by =--var=KEY::VALUE=. For example =--var=date::10/10/10=.
+Values passed in this way will be inserted into fields that look like
+this:  =%%date%%=
+
+
+** Command Line
+
+#+BEGIN_EXAMPLE
+Usage:
+  static FILENAME [DESTINATION] [DEFAULTPARENT] [--var=KEY::VALUE...] [-i IGNORE]
+
+Options:
+  --var=KEY::VALUE...
+                This can be specified multiple times.  Note that
+                double colons must be used.
+  -i PREFIX --ignore-prefix PREFIX
+                Static will ignore any file starting with this string
+
+Overview
+  if FILENAME is a file, only that file will be compiled.  If FILENAME is
+  a directory, all the files below that directory will be processed.  By default
+  any files starting with =template_= will be ignored.  That can be changed by
+  using the =--ingore-prefix= argument.
+
+  Basically, if you edit a child document, update only that one file.  If you
+  edit a template (parent) file, you want to update all files so you pass the
+  directory to static
+#+END_EXAMPLE
+
+
+** Example code for Emacs
+
+#+BEGIN_SRC emacs-lisp
+(defun sm/compile-html()
+  "If a buffer is using web-mode, it will call static to compile it"
+  (interactive)
+  (if (string= (format "%s" mode-name) "Web")
+      (let* ((this-file
+              (buffer-file-name
+               (current-buffer)))
+             ;If file name starts with this it's a template
+             (template-marker "template_")
+             ;Get the length of marker
+             (end-compare (length template-marker))
+             ;Test if this file is a template
+             (is-template
+              (compare-strings
+               (file-name-nondirectory this-file) 0 end-compare
+               template-marker 0 end-compare)))
+        (if (booleanp is-template)
+            (setq this-file (file-name-directory this-file)))
+        (setq cmd (format "~/bin/static %s" this-file))
+        (shell-command cmd)
+        (message cmd)
+        )))
+(add-hook 'after-save-hook 'sm/compile-html)
+#+END_SRC
