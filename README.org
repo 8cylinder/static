@@ -1,5 +1,5 @@
 
-* [[images/static-logo%400.5x.png?raw=true]]
+* [[images/static-logo__0.5x.png?raw=true]]
 The ridiculously simple static site generator.
 
 
@@ -9,13 +9,13 @@ Static takes a child document and inserts it into a parent document.
 A parent document looks like this:
 #+BEGIN_SRC html
 <html>
-<head>
-  <title>[[title]]</title>
-</head>
-<body>
-  <h1>[[bigheader]]</h1>
-  [[content]]
-</body>
+  <head>
+    <title>[[title]]</title>
+  </head>
+  <body>
+    <h1>[[bigheader]]</h1>
+    [[content]]
+  </body>
 </html>
 #+END_SRC
 
@@ -41,13 +41,13 @@ In the child document, tags called =template= contain values that get
 inserted into the parent.
 
 The first three are special.  If they are in the document, they will
-over ride any set on the command line.
+override any set on the command line.
   1. =template:parent= is the name of the parent file to use.
   2. =template:filename= is the name the generated file will be.  If
      this is not used, the filename will be the name of the child.
   3. =template:destination= is where the generated file will be put.
 
-Any other =template:some-name= tags will have their value inseted into the
+Any other =template:somename= tags will have their value inseted into the
 parent's matching =[somename]]=.
 
 Values can also be passed in from the command line.  Values can be
@@ -82,6 +82,8 @@ Overview
 
 
 ** Example code for Emacs
+
+If you use Emacs, you'll find this code useful.
 
 This function automaticaly runs static on any child documents when
 saved, and runs static on all the files when a template file is saved.
