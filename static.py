@@ -15,9 +15,14 @@ Example:
   content.html ~/projects/site ~/projects/src/html/
 
 Overview:
+  Compile one or all the files in a dir (excluding any set with the -i
+  switch).  If the filename is a single file, compile only one, if
+  its a dir, compile all.  The default is to ignore any files starting
+  with 'template_'.
+
   This takes a child document and inserts it into a parent document.
-  The child document is the <filename> and the parent is the
-  <defaultparent> or from inside of the child document.  The parent
+  The child document is the FILENAME and the parent is the
+  DEFAULTPARENT or from inside of the child document.  The parent
   must have a [[content]] field in it.  This is where the child
   document is inserted.
 
@@ -31,17 +36,18 @@ Overview:
   The --var=some_name::value field on the command line will be sent to
   the %%some_name%% field in the parent.
 
-filename is required and the destination and defaultparent can be
-specified on the command line or from inside of the child document.
+  FILENAME is required and the DESTINATION and DEFAULTPARENT can be
+  specified on the command line or from inside of the child document.
 
-var is an optional key:value formated string that contains replacement
-values for placeholder strings in the html file.  The placeholder
-looks like this: %%placeholder%%
+  var is an optional key:value formated string that contains replacement
+  values for placeholder strings in the html file.  The placeholder
+  looks like this: %%placeholder%%
 
-filename:        Source filename (the child document)
-destination:     Destination directory for compiled html
-default parent:  The parent html template to use if its not
-                 specified in the <template:filename> tag
+  FILENAME:       Source filename (the child document).
+  DESTINATION:    Destination directory for compiled html if not specified
+                  by the <template:destination> tag in the child document.
+  DEFAULTPARENT:  The parent html template to use if its not specified by
+                  the <template:parent> tag in the child document.
 '''
 
 import re, sys, os
@@ -91,7 +97,8 @@ def compile_one(A):
 
     # extract the values from the tags in the html file
     tag_values = {}
-    all_matches = re.finditer(r'<template:(.*?)>(.*?)</template:\1>', content)
+    all_matches = re.finditer(r'<template:(.*?)>(.*?)</template:\1>',
+                              content, re.MULTILINE|re.DOTALL)
     for m in all_matches:
         tag_name = m.group(1)
         tag_value = m.group(2)
@@ -128,14 +135,12 @@ def compile_one(A):
             if val == m.group(1):
                 frame = frame.replace(m.group(), vars[val])
 
-    # insert the content into the parent
-    content = content.strip()
-    full = frame.replace('[[content]]', content)
-
     for v in tag_values:
         dest_tag = '[[%s]]' % v
         full = full.replace(dest_tag, tag_values[v])
 
+    # now remove all unused [[.*]] fields
+    full = re.sub('\[\[.*?\]\]', '', full)
 
     # write the full html to the file system
     destination = os.path.normpath(os.path.join(A.workingdir, destination, content_filename))
