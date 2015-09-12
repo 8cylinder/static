@@ -43,11 +43,9 @@ Overview:
   values for placeholder strings in the html file.  The placeholder
   looks like this: %%placeholder%%
 
-  FILENAME:       Source filename (the child document).
-  DESTINATION:    Destination directory for compiled html if not specified
-                  by the <template:destination> tag in the child document.
-  DEFAULTPARENT:  The parent html template to use if its not specified by
-                  the <template:parent> tag in the child document.
+  FILENAME:    Source filename (the child document).
+  DESTINATION: Destination directory for compiled html if not specified
+               by the <template:destination> tag in the child document.
 '''
 
 import re, sys, os
@@ -74,9 +72,11 @@ def compile_all(A):
             child = os.path.join(dirpath, f)
             A.filename = child
             A.workingdir = dirpath
-            compile_one(A.filename, A.destination, A.filename, external_vars=A.vars)
+            compile_one(A.filename, A.destination, A.filename,
+                        external_vars=A.vars)
 
-def compile_one(child_filename, destination, final_filename, external_vars={}, child_data={}):
+def compile_one(child_filename, destination, final_filename,
+                external_vars={}, child_data={}):
     OPENING = '[['
     CLOSING = ']]'
     ROPENING = '\[\['
@@ -90,25 +90,29 @@ def compile_one(child_filename, destination, final_filename, external_vars={}, c
     for m in all_inserts:
         insert_content = read_file(m.group(1))
         replace_tag = m.group(0)
-        child_contents = child_contents.replace(replace_tag, insert_content)
+        child_contents = child_contents.replace(
+            replace_tag, insert_content)
 
     # replace the %%...%% fields in the content file
     for m in re.finditer(r'%%(.*?)%%', child_contents):
         for val in external_vars:
             if val == m.group(1):
-                child_contents = child_contents.replace(m.group(), external_vars[val])
+                child_contents = child_contents.replace(
+                    m.group(), external_vars[val])
 
     # fill any [[BLOCKS]] in child doc
     for block_name in child_data:
         dest_tag = '{}{}{}'.format(OPENING, block_name, CLOSING)
-        child_contents = child_contents.replace(dest_tag, child_data[block_name])
+        child_contents = child_contents.replace(
+            dest_tag, child_data[block_name])
 
-    # remove the parent field so we can stop recursing if there is no more
-    # parents
+    # remove the parent field so we can stop recursing if
+    # there is no more parents
     if 'parent' in child_data:
         del child_data['parent']
 
-    # extract the values from the <template:...> tags in the html file
+    # extract the values from the <template:...>
+    # tags in the html file
     all_matches = re.finditer(
         r'<template:(.*?)>(.*?)</template:\1>',
         child_contents, re.MULTILINE|re.DOTALL)
@@ -116,15 +120,17 @@ def compile_one(child_filename, destination, final_filename, external_vars={}, c
     for m in all_matches:
         tag_name = m.group(1)
         tag_value = m.group(2)
-        # if a tag name matches an older one, don't set it because we want the
-        # value closest to the begining to take presidence over later ones
-        #if tag_name in child_data: continue
+        # if a tag name matches an older one, don't set it because
+        # we want the value closest to the begining to take
+        # presidence over later ones if tag_name in
+        # child_data: continue
         child_data[tag_name] = tag_value
 
     if 'parent' in child_data:
         child_filename = child_data['parent']
         compile_one(child_filename, destination, final_filename,
-                    external_vars=external_vars, child_data=child_data)
+                    external_vars=external_vars,
+                    child_data=child_data)
     else:
         # delete all unused [[BLOCKS]] and %%EXTERNAL_VARS%%
         regex = "({}.*?{}|%%.*?%%)".format(ROPENING, RCLOSING)
@@ -134,7 +140,8 @@ def compile_one(child_filename, destination, final_filename, external_vars={}, c
         try:
             dest = open(final_filename, 'w')
         except IOError:
-            error('Destination does not exist: "%s"' % (final_filename))
+            error('Destination does not exist: "%s"' % (
+                final_filename))
         dest.write(child_contents)
         dest.close()
 
@@ -156,7 +163,8 @@ def main(args):
         compile_all(A)
 
     elif os.path.isfile(A.filename):
-        compile_one(A.filename, A.destination, A.filename, external_vars=A.vars)
+        compile_one(A.filename, A.destination,
+                    A.filename, external_vars=A.vars)
 
     else:
         error('%s does not exist' % name)

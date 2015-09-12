@@ -1,11 +1,13 @@
 
-* [[images/static-logo__0.5x.png?raw=true]]
-The ridiculously simple static site generator.
+[[images/static-logo__0.5x.png?raw=true]]
+
+A simple static site generator.
 
 
 ** Overview
-Static is a command line tool that takes a child document and inserts it into a
-parent document, and it will do it recursively.
+Static is a command line tool that takes a child document and
+inserts it into a parent document, and it will do it
+recursively.
 
 A parent document looks like this:
 #+BEGIN_SRC html
@@ -33,44 +35,50 @@ And this is a child document:
 <p>Anything outside of a <template:...> tag will be ignored.</p>
 #+END_SRC
 
-In the parent document, fields are marked with two square brackets.  The names
-inside of the square brackets correspond with the name after the : inside of the
-template tag.
+In the parent document, fields are marked with two square
+brackets.  The names inside of the square brackets correspond
+with the name after the : inside of the template tag.
 
-For example, =<template:somename>Some content</template:somename>=, will have
-"Some content" inserted into the parent's =[[somename]]= field.
+For example, =<template:somename>Some
+content</template:somename>=, will have "Some content"
+inserted into the parent's =[[somename]]= field.
 
 The only required template tag is
-=<template:parent>filename.html</template:parent>=.  This is the name of the
-parent document.
+=<template:parent>filename.html</template:parent>=.  This is
+the name of the parent document.
 
-Any other =<template:somename>...</template:somename>= tags will have their value
-inseted into the parent's matching =[[somename]]=, and anything outside of the tags
-will be ignored.
+Any other =<template:somename>...</template:somename>= tags
+will have their value inseted into the parent's matching
+=[[somename]]=, and anything outside of the tags will be ignored.
 
-Some additional features are that external documents can be inserted at any point
-by using a field like this: =[[insert:../dir/somefile.html]]=.
+Some additional features are that external documents can be
+inserted at any point by using a field like this:
+=[[insert:../dir/somefile.html]]=.
 
-Also, values can be passed from the command line.  By using =--var=KEY::VALUE=,
-value will be inserted into a field that looks like this: =%%KEY%%=.  This can be
-used multiple times.  For example:
+Also, values can be passed from the command line.  By using
+=--var=KEY::VALUE=, value will be inserted into a field that
+looks like this: =%%KEY%%=.  This can be used multiple times.
+For example:
 
 : static child.html ../dist --var=date::10/10/10 --var=myname::'Toby Flenderson'
 
-The date and myname values will be inserted into =%%date%%= and =%%myname%%=
-anywhere those fields appear.
+The date and myname values will be inserted into =%%date%%= and
+=%%myname%%= anywhere those fields appear.
 
-If the filename is a dir, static will compile all the files there, including any
-in sub dirs.  It defaults to excluding any file that start with 'template_', but
-that can be changed by using the =--ignore-prefix= flag.  This means that you can
-have a directory structure that might look like this and everything will be
-compiled but the template_* files will be ignored:
+If the filename is a dir, static will compile all the files
+there, including any in sub dirs.  It defaults to excluding
+any file that start with 'template_', but that can be changed
+by using the =--ignore-prefix= flag.  This means that you can
+have a directory structure that might look like this and
+everything will be compiled but the template_* files will be
+ignored:
 
 : static ./html ../dist
 
-That will compile all the files in =html= and put them in =../dist=, and not
-iterating over the template_* files (but the non template files can still be
-referencing the template files as parents).
+That will compile all the files in =html= and put them in
+=../dist=, and not iterating over the template_* files (but the
+non template files can still be referencing the template
+files as parents).
 
 : html/
 :   home.html
@@ -116,14 +124,14 @@ Example:
   content.html ~/projects/site ~/projects/src/html/
 
 Overview:
-  Compile one or all the files in a dir (excluding any set with the -i
-  switch).  If the FILENAME is a single file, compile only one, if
-  its a dir, compile all.  The default is to ignore any files starting
-  with 'template_'.
+  Compile one or all the files in a dir (excluding any set
+  with the -i switch).  If the FILENAME is a single file,
+  compile only one, if its a dir, compile all.  The default
+  is to ignore any files starting with 'template_'.
 
-  This takes a child document and inserts it into a parent document.
-  The child document is the FILENAME and the parent is set in the child
-  document.
+  This takes a child document and inserts it into a parent
+  document.  The child document is the FILENAME and the
+  parent is set in the child document.
 
   Values are pass from the child document to the parent by writing
   template tags like this:
@@ -132,21 +140,22 @@ Overview:
   In the parent the value of some_name is put into this field:
   [[some_name]]
 
-  The --var=some_name::value field on the command line will be sent to
-  the %%some_name%% field in the parent.
+  The --var=some_name::value field on the command line will
+  be sent to the %%some_name%% field in the parent.
 
-  FILENAME is required and the DESTINATION and DEFAULTPARENT can be
-  specified on the command line or from inside of the child document.
+  FILENAME is required and the DESTINATION and DEFAULTPARENT
+  can be specified on the command line or from inside of the
+  child document.
 
-  var is an optional key:value formatted string that contains replacement
-  values for placeholder strings in the html file.  The placeholder
-  looks like this: %%placeholder%%
+  var is an optional key:value formatted string that contains
+  replacement values for placeholder strings in the html
+  file.  The placeholder looks like this: %%placeholder%%
 
-  FILENAME:       Source filename (the child document).
-  DESTINATION:    Destination directory for compiled html if not specified
-                  by the <template:destination> tag in the child document.
-  DEFAULTPARENT:  The parent html template to use if its not specified by
-                  the <template:parent> tag in the child document.
+  FILENAME:
+    Source filename (the child document).
+  DESTINATION:
+    Destination directory for compiled html if not specified
+    by the <template:destination> tag in the child document.
 #+END_EXAMPLE
 
 
@@ -154,8 +163,9 @@ Overview:
 
 If you use Emacs, you'll find this code useful.
 
-This function automatically runs static on any child documents when
-saved, and runs static on all the files when a template file is saved.
+This function automatically runs static on any child
+documents when saved, and runs static on all the files when a
+template file is saved.
 
 #+BEGIN_SRC emacs-lisp
 (defun static/compile()
