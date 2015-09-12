@@ -2,7 +2,7 @@
 
 r'''
 Usage:
-  static FILENAME [DESTINATION] [DEFAULTPARENT] [--var=KEY::VALUE...] [-i IGNORE]
+  static FILENAME DESTINATION [--var=KEY::VALUE...] [-i IGNORE]
 
 Options:
   --var=KEY::VALUE...  This can be specified multiple times.  Note that
@@ -58,6 +58,13 @@ def error(msg):
     print msg
     sys.exit(1)
 
+def read_file(filename):
+    try:
+        content = open(filename).read()
+    except IOError:
+        error('File does not exist: "%s"' % content_filename)
+    return content
+
 def compile_all(A):
     ignore = A.ignore or 'template_'
     d = A.filename
@@ -67,105 +74,90 @@ def compile_all(A):
             child = os.path.join(dirpath, f)
             A.filename = child
             A.workingdir = dirpath
-            #pp(vars(A))
-            compile_one(A)
+            compile_one(A.filename, A.destination, A.filename, external_vars=A.vars)
 
-def compile_one(A):
-    content_filename = A.filename
-    parent_filename = A.defaultparent
-    destination = A.destination
+def compile_one(child_filename, destination, final_filename, external_vars={}, child_data={}):
+    OPENING = '[['
+    CLOSING = ']]'
+    ROPENING = '\[\['
+    RCLOSING = '\]\]'
 
-    vars = {}
-    if A.var:
-        for v in A.var:
-            kv = v.split('::')
-            key = kv[0]
-            value = kv[1]
-            vars[key] = value
+    child_contents = read_file(child_filename)
 
-    # read the content file
-    try:
-        content = open(content_filename).read()
-    except IOError:
-        error('Content file does not exist: "%s"' % content_filename)
+    # if [[insert:SOME_FILE]]: insert it.
+    regex = '{}insert:(.*?){}'.format(ROPENING, RCLOSING)
+    all_inserts = re.finditer(regex, child_contents)
+    for m in all_inserts:
+        insert_content = read_file(m.group(1))
+        replace_tag = m.group(0)
+        child_contents = child_contents.replace(replace_tag, insert_content)
 
     # replace the %%...%% fields in the content file
-    for m in re.finditer(r'%%(.*?)%%', content):
-        for val in vars:
+    for m in re.finditer(r'%%(.*?)%%', child_contents):
+        for val in external_vars:
             if val == m.group(1):
-                content = content.replace(m.group(), vars[val])
+                child_contents = child_contents.replace(m.group(), external_vars[val])
 
-    # extract the values from the tags in the html file
-    tag_values = {}
-    all_matches = re.finditer(r'<template:(.*?)>(.*?)</template:\1>',
-                              content, re.MULTILINE|re.DOTALL)
+    # fill any [[BLOCKS]] in child doc
+    for block_name in child_data:
+        dest_tag = '{}{}{}'.format(OPENING, block_name, CLOSING)
+        child_contents = child_contents.replace(dest_tag, child_data[block_name])
+
+    # remove the parent field so we can stop recursing if there is no more
+    # parents
+    if 'parent' in child_data:
+        del child_data['parent']
+
+    # extract the values from the <template:...> tags in the html file
+    all_matches = re.finditer(
+        r'<template:(.*?)>(.*?)</template:\1>',
+        child_contents, re.MULTILINE|re.DOTALL)
+
     for m in all_matches:
         tag_name = m.group(1)
         tag_value = m.group(2)
-        content = content.replace(m.group(), '') # delete the tag
+        # if a tag name matches an older one, don't set it because we want the
+        # value closest to the begining to take presidence over later ones
+        #if tag_name in child_data: continue
+        child_data[tag_name] = tag_value
 
-        # check in the child doc if vars are set there
-        if tag_name == 'filename':
-            content_filename = tag_value # override command line
-        elif tag_name == 'parent':
-            parent_filename = tag_value # override command line
-        elif tag_name == 'destination':
-            destination = tag_value
-        else:
-            tag_values[tag_name] = tag_value
+    if 'parent' in child_data:
+        child_filename = child_data['parent']
+        compile_one(child_filename, destination, final_filename,
+                    external_vars=external_vars, child_data=child_data)
+    else:
+        # delete all unused [[BLOCKS]] and %%EXTERNAL_VARS%%
+        regex = "({}.*?{}|%%.*?%%)".format(ROPENING, RCLOSING)
+        child_contents = re.sub(regex, '', child_contents)
 
-    if not content_filename or not parent_filename or not destination:
-        print('ERROR: %s' % content_filename)
-        print('  Required variables are not set:')
-        #print('    filename:    "%s"' % content_filename)
-        print('    parent:      "%s"' % parent_filename)
-        print('    destination: "%s"' % destination)
-        return
+        final_filename = os.path.join(destination, final_filename)
+        try:
+            dest = open(final_filename, 'w')
+        except IOError:
+            error('Destination does not exist: "%s"' % (final_filename))
+        dest.write(child_contents)
+        dest.close()
 
-    # read the parent html file
-    parent_filename = os.path.join(A.workingdir, parent_filename)
-    try:
-        frame = open(parent_filename).read()
-    except IOError:
-        error('Parent file does not exist: "%s"' % parent_filename)
-
-    # replace the %%...%% fields in the parent file
-    for m in re.finditer(r'%%(.*?)%%', frame):
-        for val in vars:
-            if val == m.group(1):
-                frame = frame.replace(m.group(), vars[val])
-
-    for v in tag_values:
-        dest_tag = '[[%s]]' % v
-        full = full.replace(dest_tag, tag_values[v])
-
-    # now remove all unused [[.*]] fields
-    full = re.sub('\[\[.*?\]\]', '', full)
-
-    # write the full html to the file system
-    destination = os.path.normpath(os.path.join(A.workingdir, destination, content_filename))
-    try:
-        dest = open(destination, 'w')
-    except IOError:
-        error('Destination does not exist: "%s/%s"' % (destination, content_filename))
-    dest.write(full)
-    dest.close()
-
-    print 'Done:', content_filename, destination
 
 def main(args):
     class A:
         filename = args['FILENAME']
         destination = args['DESTINATION']
-        defaultparent = args['DEFAULTPARENT']
         ignore = args['--ignore-prefix']
-        var = args['--var']
         workingdir = os.path.dirname(args['FILENAME'])
+        vars = {}
+        for var in args['--var']:
+            kv = var.split('::')
+            key = kv[0]
+            value = kv[1]
+            vars[key] = value
 
     if os.path.isdir(A.filename):
         compile_all(A)
+
     elif os.path.isfile(A.filename):
-        compile_one(A)
+        compile_one(A.filename, A.destination, A.filename, external_vars=A.vars)
+
     else:
         error('%s does not exist' % name)
 
