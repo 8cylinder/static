@@ -1,14 +1,17 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 r'''
 Usage:
-  static FILENAME DESTINATION [--var=KEY::VALUE...] [-i IGNORE]
+  static FILENAME DESTINATION [--var=KEY::VALUE...] [-i IGNORE] [-d]
 
 Options:
   --var=KEY::VALUE...  This can be specified multiple times.  Note that
                        double colons must be used.
   -i PREFIX --ignore-prefix PREFIX
-                       Static will ignore any file starting with
+                       Static will ignore any file starting with this
+                       prefix, whether it is a file or directory
+  -d --do-not-write    Output result to screen instead of writing the
+                       file to the filesystem
 
 Example:
   html-builder --var='name::John Brown' --var=phone::1234567 \
@@ -21,14 +24,12 @@ Overview:
   with 'template_'.
 
   This takes a child document and inserts it into a parent document.
-  The child document is the FILENAME and the parent is the
-  DEFAULTPARENT or from inside of the child document.  The parent
-  must have a [[content]] field in it.  This is where the child
-  document is inserted.
+  The child document is the FILENAME and the parent is set in the child
+  document using [[parent:some/file/name]]
 
   Values are pass from the child document to the parent by writing
   template tags like this:
-  <template:some_name>value</template:some_name>
+  [[block:some_name]]value[[/block]]
 
   In the parent the value of some_name is put into this field:
   [[some_name]]
@@ -36,8 +37,7 @@ Overview:
   The --var=some_name::value field on the command line will be sent to
   the %%some_name%% field in the parent.
 
-  FILENAME is required and the DESTINATION and DEFAULTPARENT can be
-  specified on the command line or from inside of the child document.
+  FILENAME and DESTINATION are required.
 
   var is an optional key:value formated string that contains replacement
   values for placeholder strings in the html file.  The placeholder
@@ -53,30 +53,34 @@ from docopt import docopt
 from pprint import pprint as pp
 
 def error(msg):
-    print msg
+    print(msg)
     sys.exit(1)
 
 def read_file(filename):
     try:
         content = open(filename).read()
     except IOError:
-        error('File does not exist: "%s"' % content_filename)
+        error('File does not exist: "%s"' % filename)
     return content
 
 def compile_all(A):
-    ignore = A.ignore or 'template_'
-    d = A.filename
-    for (dirpath, dirnames, filenames) in os.walk(d):
+    ignore = A.ignore or 'template'
+    working_dir = A.filename
+    for (dirpath, dirnames, filenames) in os.walk(working_dir):
+        #print('>>>', dirpath, dirnames, filenames)
+        if os.path.basename(dirpath).startswith(ignore):
+            continue
         for f in filenames:
-            if f.startswith(ignore): continue
+            if f.startswith(ignore):
+                continue
             child = os.path.join(dirpath, f)
-            A.filename = child
-            A.workingdir = dirpath
-            compile_one(A.filename, A.destination, A.filename,
-                        external_vars=A.vars)
+            final_filename = os.path.basename(child)
+            #print(child, '--', final_filename, '--', A.destination)
+            compile_one(child, A.destination, final_filename,
+                        external_vars=A.vars, do_not_write=A.do_not_write)
 
 def compile_one(child_filename, destination, final_filename,
-                external_vars={}, child_data={}):
+                external_vars={}, child_data={}, do_not_write=False):
     OPENING = '[['
     CLOSING = ']]'
     ROPENING = '\[\['
@@ -111,47 +115,57 @@ def compile_one(child_filename, destination, final_filename,
     if 'parent' in child_data:
         del child_data['parent']
 
-    # extract the values from the <template:...>
+    # extract the values from the [[block:...]]
     # tags in the html file
+    #re_str = r'{}block:(.*?){}(.*?){}/block:\1{}'.format( # [[block:name]]...[[/block:name]]
+    re_str = r'{}block:(.*?){}(.*?){}/block{}'.format(   # [[block:name]]...[[/block]]
+        ROPENING, RCLOSING, ROPENING, RCLOSING)
     all_matches = re.finditer(
-        r'<template:(.*?)>(.*?)</template:\1>',
-        child_contents, re.MULTILINE|re.DOTALL)
+        re_str, child_contents, re.MULTILINE|re.DOTALL)
 
     for m in all_matches:
         tag_name = m.group(1)
         tag_value = m.group(2)
-        # if a tag name matches an older one, don't set it because
-        # we want the value closest to the begining to take
-        # presidence over later ones if tag_name in
-        # child_data: continue
         child_data[tag_name] = tag_value
 
-    if 'parent' in child_data:
-        child_filename = child_data['parent']
+    #if [[parent:...]] in child:
+    parent_filename = re.search('{}parent:(.*?){}'.format(ROPENING, RCLOSING), child_contents)
+    if parent_filename:
+        child_filename = parent_filename.group(1)
         compile_one(child_filename, destination, final_filename,
                     external_vars=external_vars,
-                    child_data=child_data)
+                    child_data=child_data, do_not_write=do_not_write)
     else:
         # delete all unused [[BLOCKS]] and %%EXTERNAL_VARS%%
         regex = "({}.*?{}|%%.*?%%)".format(ROPENING, RCLOSING)
         child_contents = re.sub(regex, '', child_contents)
 
+        #print(destination, final_filename)
         final_filename = os.path.join(destination, final_filename)
-        try:
-            dest = open(final_filename, 'w')
-        except IOError:
-            error('Destination does not exist: "%s"' % (
-                final_filename))
-        dest.write(child_contents)
-        dest.close()
+        if do_not_write:
+            print(child_contents)
+        else:
+            try:
+                dest = open(final_filename, 'w')
+            except IOError:
+                error('Destination does not exist: "%s"' % (
+                    final_filename))
+            dest.write(child_contents)
+            dest.close()
+            print('Created:', final_filename)
 
 
 def main(args):
     class A:
-        filename = args['FILENAME']
-        destination = args['DESTINATION']
+        filename = os.path.abspath(args['FILENAME'])
+        destination = os.path.abspath(args['DESTINATION'])
         ignore = args['--ignore-prefix']
-        workingdir = os.path.dirname(args['FILENAME'])
+        do_not_write = args['--do-not-write']
+
+        workingdir = os.path.abspath(args['FILENAME'])
+        if not os.path.isdir(workingdir):
+            workingdir = os.path.dirname(workingdir)
+
         vars = {}
         for var in args['--var']:
             kv = var.split('::')
@@ -159,15 +173,19 @@ def main(args):
             value = kv[1]
             vars[key] = value
 
+    os.chdir(A.workingdir)
+
     if os.path.isdir(A.filename):
         compile_all(A)
 
     elif os.path.isfile(A.filename):
-        compile_one(A.filename, A.destination,
-                    A.filename, external_vars=A.vars)
+        final_filename = os.path.basename(A.filename)
+        compile_one(A.filename, A.destination, final_filename,
+                    external_vars=A.vars, do_not_write=A.do_not_write)
 
     else:
-        error('%s does not exist' % name)
+        print(A.filename, os.path.curdir)
+        error('{} does not exist'.format(A.filename))
 
 
 if __name__ == '__main__':
