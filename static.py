@@ -9,7 +9,8 @@ Options:
                        double colons must be used.
   -i PREFIX --ignore-prefix PREFIX
                        Static will ignore any file starting with this
-                       prefix, whether it is a file or directory
+                       prefix, whether it is a file or directory.  Static
+                       defaults to ignore anything starting with 'template'
   -d --do-not-write    Output result to screen instead of writing the
                        file to the filesystem
 
@@ -92,28 +93,29 @@ def compile_one(child_filename, destination, final_filename,
     ROPENING = '\[\['
     RCLOSING = '\]\]'
 
-    child_contents = read_file(child_filename)
+    ## read the current file
+    current_contents = read_file(child_filename)
 
-    # if [[insert:SOME_FILE]]: insert it.
+    # if [[insert:SOME_FILE]] is in the current file then insert it.
     regex = '{}insert:(.*?){}'.format(ROPENING, RCLOSING)
-    all_inserts = re.finditer(regex, child_contents)
+    all_inserts = re.finditer(regex, current_contents)
     for m in all_inserts:
         insert_content = read_file(m.group(1))
         replace_tag = m.group(0)
-        child_contents = child_contents.replace(
+        current_contents = current_contents.replace(
             replace_tag, insert_content)
 
     # replace the %%...%% fields in the content file
-    for m in re.finditer(r'%%(.*?)%%', child_contents):
+    for m in re.finditer(r'%%(.*?)%%', current_contents):
         for val in external_vars:
             if val == m.group(1):
-                child_contents = child_contents.replace(
+                current_contents = current_contents.replace(
                     m.group(), external_vars[val])
 
-    # fill any [[BLOCKS]] in child doc
+    # fill any [[...]] tags in current file from data in the previous file
     for block_name in child_data:
         dest_tag = '{}{}{}'.format(OPENING, block_name, CLOSING)
-        child_contents = child_contents.replace(
+        current_contents = current_contents.replace(
             dest_tag, child_data[block_name])
 
     # remove the parent field so we can stop recursing if
@@ -121,13 +123,12 @@ def compile_one(child_filename, destination, final_filename,
     if 'parent' in child_data:
         del child_data['parent']
 
-    # extract the values from the [[block:...]]
+    # extract the values from the [[block:...]]...[[/block]]
     # tags in the html file
-    # [[block:name]]...[[/block]]
     re_str = r'{}block:(.*?){}(.*?){}/block{}'.format(
         ROPENING, RCLOSING, ROPENING, RCLOSING)
     all_matches = re.finditer(
-        re_str, child_contents, re.MULTILINE | re.DOTALL)
+        re_str, current_contents, re.MULTILINE | re.DOTALL)
 
     for m in all_matches:
         tag_name = m.group(1)
@@ -136,7 +137,7 @@ def compile_one(child_filename, destination, final_filename,
 
     # if [[parent:...]] in child:
     parent_filename = re.search(
-        '{}parent:(.*?){}'.format(ROPENING, RCLOSING), child_contents)
+        '{}parent:(.*?){}'.format(ROPENING, RCLOSING), current_contents)
     if parent_filename:
         child_filename = parent_filename.group(1)
         compile_one(child_filename, destination, final_filename,
@@ -145,19 +146,19 @@ def compile_one(child_filename, destination, final_filename,
     else:
         # delete all unused [[BLOCKS]] and %%EXTERNAL_VARS%%
         regex = "({}.*?{}|%%.*?%%)".format(ROPENING, RCLOSING)
-        child_contents = re.sub(regex, '', child_contents)
+        current_contents = re.sub(regex, '', current_contents)
 
         # print(destination, final_filename)
         final_filename = os.path.join(destination, final_filename)
         if do_not_write:
-            print(child_contents)
+            print(current_contents)
         else:
             try:
                 dest = open(final_filename, 'w')
             except IOError:
                 error('Destination does not exist: "%s"' % (
                     final_filename))
-            dest.write(child_contents)
+            dest.write(current_contents)
             dest.close()
             print('Created:', final_filename)
 
