@@ -48,13 +48,17 @@ Overview:
                by the <template:destination> tag in the child document.
 '''
 
-import re, sys, os
+import re
+import sys
+import os
 from docopt import docopt
 from pprint import pprint as pp
+
 
 def error(msg):
     print(msg)
     sys.exit(1)
+
 
 def read_file(filename):
     try:
@@ -63,11 +67,12 @@ def read_file(filename):
         error('File does not exist: "%s"' % filename)
     return content
 
+
 def compile_all(A):
     ignore = A.ignore or 'template'
     working_dir = A.filename
     for (dirpath, dirnames, filenames) in os.walk(working_dir):
-        #print('>>>', dirpath, dirnames, filenames)
+        # print('>>>', dirpath, dirnames, filenames)
         if os.path.basename(dirpath).startswith(ignore):
             continue
         for f in filenames:
@@ -75,9 +80,10 @@ def compile_all(A):
                 continue
             child = os.path.join(dirpath, f)
             final_filename = os.path.basename(child)
-            #print(child, '--', final_filename, '--', A.destination)
+            # print(child, '--', final_filename, '--', A.destination)
             compile_one(child, A.destination, final_filename,
                         external_vars=A.vars, do_not_write=A.do_not_write)
+
 
 def compile_one(child_filename, destination, final_filename,
                 external_vars={}, child_data={}, do_not_write=False):
@@ -117,19 +123,20 @@ def compile_one(child_filename, destination, final_filename,
 
     # extract the values from the [[block:...]]
     # tags in the html file
-    #re_str = r'{}block:(.*?){}(.*?){}/block:\1{}'.format( # [[block:name]]...[[/block:name]]
-    re_str = r'{}block:(.*?){}(.*?){}/block{}'.format(   # [[block:name]]...[[/block]]
+    # [[block:name]]...[[/block]]
+    re_str = r'{}block:(.*?){}(.*?){}/block{}'.format(
         ROPENING, RCLOSING, ROPENING, RCLOSING)
     all_matches = re.finditer(
-        re_str, child_contents, re.MULTILINE|re.DOTALL)
+        re_str, child_contents, re.MULTILINE | re.DOTALL)
 
     for m in all_matches:
         tag_name = m.group(1)
         tag_value = m.group(2)
         child_data[tag_name] = tag_value
 
-    #if [[parent:...]] in child:
-    parent_filename = re.search('{}parent:(.*?){}'.format(ROPENING, RCLOSING), child_contents)
+    # if [[parent:...]] in child:
+    parent_filename = re.search(
+        '{}parent:(.*?){}'.format(ROPENING, RCLOSING), child_contents)
     if parent_filename:
         child_filename = parent_filename.group(1)
         compile_one(child_filename, destination, final_filename,
@@ -140,7 +147,7 @@ def compile_one(child_filename, destination, final_filename,
         regex = "({}.*?{}|%%.*?%%)".format(ROPENING, RCLOSING)
         child_contents = re.sub(regex, '', child_contents)
 
-        #print(destination, final_filename)
+        # print(destination, final_filename)
         final_filename = os.path.join(destination, final_filename)
         if do_not_write:
             print(child_contents)
