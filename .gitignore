@@ -1,0 +1,8 @@
+MANIFEST
+README.rst
+README.txt
+/build
+/dist
+/venv
+*.egg-info
+.vagrant/
