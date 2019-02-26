@@ -88,19 +88,14 @@ def static(filename, destination, ignore, echo, var, strict):
 
     warnings.filterwarnings("error")
     for child in children:
-        final_filename = os.path.basename(filename)
+        final_filename = os.path.basename(child)
         final_filename = os.path.join(destination, final_filename)
         try:
-            static(destination, final_filename, child,
-                   external_vars=ext_vars, strict=strict, echo=echo)
-            static.compile(child, final_filename,
-                           external_vars=ext_vars)
+            static.compile(child, final_filename, external_vars=ext_vars)
         except InsertedParentsError as e:
             sys.exit(e)
         except InsertedParentsWarning as e:
             print(e)
-
-        print('done')
 
 
 def find_templates(start, ignore=const.IGNORE):
@@ -114,8 +109,7 @@ def find_templates(start, ignore=const.IGNORE):
                 continue
             child = os.path.join(dirpath, f)
             final_filename = os.path.basename(child)
-            allfiles.append([final_filename, child])
-    pp(allfiles)
+            allfiles.append(child)
     return allfiles
 
 

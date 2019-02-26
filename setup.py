@@ -12,7 +12,7 @@ setup(
     url='https://github.com/8cylinder/static',
     version='0.1',
     packages=find_packages(where='src'),
-    package_dir={'': 'src'},
+    package_dir={'': 'static'},
     py_modules=[
         os.path.splitext(os.path.basename(path))[0]
         for path in glob.glob('src/*.py')],
@@ -21,7 +21,7 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        static=static.cli:static
+        static=cli:static
     ''',
 )
 
